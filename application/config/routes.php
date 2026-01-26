@@ -56,13 +56,13 @@ $route['404_override'] = '';
 $route['translate_uri_dashes'] = FALSE;
 
 
-$route['user'] = 'User/index';
-$route['user'] = 'User/get-users';
+$route['user'] = 'User';
+// $route['user'] = 'User/get-users';
 
-$route['user/create'] = 'User/create';
+// $route['user/create'] = 'User/create';
 
-$route['user/delete/(:num)'] = 'User/delete/$1';
+// $route['user/delete/(:num)'] = 'User/delete/$1';
 
 
-$route['user/edit/(:num)'] = 'User/edit/$1';
-$route['api/users'] = 'User/get_users';
+// $route['user/edit/(:num)'] = 'User/edit/$1';
+// $route['api/users'] = 'User/get_users';
