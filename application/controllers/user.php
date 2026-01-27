@@ -5,8 +5,9 @@ use chriskacerguis\RestServer\RestController;
 defined('BASEPATH') or exit('No direct script access allowed');
 
 require_once APPPATH . 'validations/UserValidator.php';
+require_once APPPATH . 'core/RestAuthController.php';
 
-class User extends RestController
+class User extends RestAuthController
 
 {
     public function __construct()
@@ -14,7 +15,6 @@ class User extends RestController
         parent::__construct();
         $this->load->model('User_model', 'user');
         $this->load->helper('url');
-        $this->load->library('Jwt_helper');
     }
 
     // GET /user? id={id} | q={search}
