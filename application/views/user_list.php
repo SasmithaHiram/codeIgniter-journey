@@ -126,7 +126,11 @@
 
     <button id="openModalBtn" class="btn btn-primary">Create New User</button>
 
-    <br><br>
+    <div style="margin-top: 12px; margin-bottom: 12px; display: flex; gap: 8px; align-items: center;">
+        <input type="text" id="searchInput" placeholder="Search by name or email" style="flex: 1; padding: 8px;" />
+        <button class="btn btn-secondary" id="searchBtn">Search</button>
+        <button class="btn" id="clearSearchBtn">Clear</button>
+    </div>
 
     <table>
         <tr>
@@ -186,6 +190,9 @@
         const emailInput = document.getElementById('email');
         const modalTitle = document.getElementById('modalTitle');
         const messageDiv = document.getElementById('message');
+        const searchInput = document.getElementById('searchInput');
+        const searchBtn = document.getElementById('searchBtn');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
 
         function openModal(mode, userData) {
             if (mode === 'create') {
@@ -216,6 +223,27 @@
         window.addEventListener('click', function(event) {
             if (event.target === userModal) {
                 closeModal();
+            }
+        });
+
+        // Search handlers
+        function triggerSearch() {
+            const q = (searchInput.value || '').trim();
+            if (q) {
+                window.location.href = baseUrl + '/search?q=' + encodeURIComponent(q);
+            } else {
+                window.location.href = baseUrl;
+            }
+        }
+        searchBtn.addEventListener('click', triggerSearch);
+        clearSearchBtn.addEventListener('click', function() {
+            searchInput.value = '';
+            window.location.href = baseUrl;
+        });
+        searchInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                triggerSearch();
             }
         });
 

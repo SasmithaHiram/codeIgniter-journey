@@ -1,7 +1,10 @@
 <?php
 defined('BASEPATH') or exit('No direct script access allowed');
 
+require_once APPPATH . 'validations/UserValidator.php';
+
 class User extends CI_Controller
+
 {
     public function __construct()
     {
@@ -18,36 +21,61 @@ class User extends CI_Controller
 
     public function create()
     {
-        // Handle JSON (AJAX) payload
         $contentType = $this->input->get_request_header('Content-Type');
+
         if ($contentType && stripos($contentType, 'application/json') !== false) {
+
             $raw = $this->input->raw_input_stream;
             $data = json_decode($raw, true) ?: [];
-            if (!empty($data['name']) && !empty($data['email'])) {
-                $ok = $this->user->create([
-                    'name'  => $data['name'],
-                    'email' => $data['email']
-                ]);
+
+
+            $errors = UserValidator::validateCreate($data);
+
+            if (!empty($errors)) {
                 return $this->output
                     ->set_content_type('application/json')
-                    ->set_output(json_encode(['success' => (bool)$ok]));
+                    ->set_output(json_encode([
+                        'success' => false,
+                        'errors' => $errors
+                    ]));
             }
+
+            $ok = $this->user->create([
+                'name'  => $data['name'],
+                'email' => $data['email']
+            ]);
+
             return $this->output
                 ->set_content_type('application/json')
-                ->set_output(json_encode(['success' => false, 'error' => 'Invalid payload']));
+                ->set_output(json_encode([
+                    'success' => (bool)$ok
+                ]));
         }
 
-        // Handle normal form post
         if ($this->input->post()) {
-            $this->user->create([
+
+            $postData = [
                 'name'  => $this->input->post('name'),
                 'email' => $this->input->post('email')
-            ]);
+            ];
+
+
+            $errors = UserValidator::validateCreate($postData);
+
+            if (!empty($errors)) {
+                return $this->load->view('create_user', [
+                    'errors' => $errors
+                ]);
+            }
+
+            $this->user->create($postData);
             return redirect('user');
         }
 
+
         $this->load->view('create_user');
     }
+
 
     public function edit($id = null)
     {
@@ -90,7 +118,7 @@ class User extends CI_Controller
         if ($contentType && stripos($contentType, 'application/json') !== false) {
             $ok = $this->user->delete($id);
             return $this->output
-                ->set_content_type('application/json')
+                ->set_content_type('app  lication/json')
                 ->set_output(json_encode(['success' => (bool)$ok]));
         }
 
