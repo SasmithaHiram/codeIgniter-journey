@@ -102,7 +102,8 @@ class User extends RestController
         $payload = [
             'name'  => $this->put('name'),
             'email' => $this->put('email'),
-            'password' => $this->put('password')
+            // Ensure password is stored hashed, consistent with POST
+            'password' => password_hash($this->put('password'), PASSWORD_DEFAULT)
         ];
 
         if (empty($payload['name']) || empty($payload['email']) || empty($payload['password'])) {
