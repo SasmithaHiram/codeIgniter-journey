@@ -24,4 +24,10 @@ class User_model extends BaseModel
         }
         return $this->db->get($this->table)->result();
     }
+
+    public function get_user_by_email($email)
+    {
+        $query = $this->db->query("SELECT * FROM {$this->table} WHERE email = ? LIMIT 1", array($email));
+        return $query->row();
+    }
 }

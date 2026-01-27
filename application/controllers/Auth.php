@@ -26,21 +26,24 @@ class Auth extends RestController
             ], RestController::HTTP_BAD_REQUEST);
         }
 
-        $user = $this->user->get_user_by_email($email);
-        if ($user && password_verify($password, $user->password)) {
+        $user1 = $this->user->get_user_by_email($email);
+
+        if ($user1 && password_verify($password, $user1->password)) {
             $token = $this->jwt_helper->generate_token([
-                'id' => $user->id,
-                'email' => $user->email
+                'id' => $user1->id,
+                'email' => $user1->email
             ]);
-            $this->response([
+
+            return $this->response([
                 'status' => true,
                 'token' => $token
             ], RestController::HTTP_OK);
         } else {
-            $this->response([
+
+            return $this->response([
                 'status' => false,
                 'error' => 'Invalid email or password'
-            ], RestController::HTTP_UNAUTHORIZED);
+            ], RestController::HTTP_NOT_FOUND);
         }
     }
 }

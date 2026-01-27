@@ -60,6 +60,5 @@ $route['user'] = 'User';
 
 
 $route['users'] = 'user/index_get';
-$route['users'] = 'user/index_post';
 
 $route['login'] = 'auth/index_get';

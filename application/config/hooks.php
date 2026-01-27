@@ -1,5 +1,14 @@
 <?php
-defined('BASEPATH') OR exit('No direct script access allowed');
+defined('BASEPATH') or exit('No direct script access allowed');
+
+// Global CORS headers
+$hook['pre_system'] = array(
+    'class'    => 'Cors',
+    'function' => 'enable_cors',
+    'filename' => 'Cors.php',
+    'filepath' => 'hooks',
+    'params'   => array()
+);
 
 /*
 | -------------------------------------------------------------------------
