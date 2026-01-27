@@ -46,4 +46,9 @@ class BaseModel extends CI_Model
     {
         return $this->db->where($this->primaryKey, $id)->delete($this->table);
     }
+
+    public function get_user_by_email($email)
+    {
+        return $this->db->get_where($this->table, ['email' => $email])->row();
+    }
 }

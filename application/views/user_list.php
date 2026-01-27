@@ -133,25 +133,15 @@
     </div>
 
     <table>
-        <tr>
-            <th>ID</th>
-            <th>Name</th>
-            <th>Email</th>
-            <th>Actions</th>
-        </tr>
-        <?php foreach ($users as $user): ?>
-            <tr data-id="<?php echo $user->id; ?>" data-name="<?php echo htmlspecialchars($user->name, ENT_QUOTES, 'UTF-8'); ?>" data-email="<?php echo htmlspecialchars($user->email, ENT_QUOTES, 'UTF-8'); ?>">
-                <td><?php echo $user->id; ?></td>
-                <td><?php echo htmlspecialchars($user->name, ENT_QUOTES, 'UTF-8'); ?></td>
-                <td><?php echo htmlspecialchars($user->email, ENT_QUOTES, 'UTF-8'); ?></td>
-                <td>
-                    <div class="actions">
-                        <button class="btn btn-secondary edit-btn">Edit</button>
-                        <button class="btn btn-danger delete-btn">Delete</button>
-                    </div>
-                </td>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Email</th>
+                <th>Actions</th>
             </tr>
-        <?php endforeach; ?>
+        </thead>
+        <tbody id="userTableBody"></tbody>
     </table>
 
     <!-- Modal -->
@@ -226,19 +216,86 @@
             }
         });
 
+        // Render helpers
+        function renderUsers(users) {
+            const tbody = document.getElementById('userTableBody');
+            tbody.innerHTML = '';
+
+            (users || []).forEach(function(user) {
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-id', user.id);
+                tr.setAttribute('data-name', user.name || '');
+                tr.setAttribute('data-email', user.email || '');
+
+                tr.innerHTML = `
+                    <td>${user.id}</td>
+                    <td>${escapeHtml(user.name || '')}</td>
+                    <td>${escapeHtml(user.email || '')}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="btn btn-secondary edit-btn">Edit</button>
+                            <button class="btn btn-danger delete-btn">Delete</button>
+                        </div>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // rebind action buttons after render
+            bindRowActions();
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return String(text).replace(/[&<>"']/g, function(m) {
+                return map[m];
+            });
+        }
+
+        function showMessage(msg, ok = true) {
+            messageDiv.style.color = ok ? 'green' : 'red';
+            messageDiv.textContent = msg;
+            setTimeout(() => {
+                messageDiv.textContent = '';
+            }, 2500);
+        }
+
+        async function loadUsers(q) {
+            try {
+                const url = q ? `${baseUrl}?q=${encodeURIComponent(q)}` : baseUrl;
+                const res = await fetch(url, {
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                });
+                const data = await res.json();
+                if (data && data.success) {
+                    renderUsers(data.data || []);
+                } else {
+                    renderUsers([]);
+                    showMessage('Failed to load users', false);
+                }
+            } catch (e) {
+                console.error(e);
+                showMessage('Error loading users', false);
+            }
+        }
+
         // Search handlers
         function triggerSearch() {
             const q = (searchInput.value || '').trim();
-            if (q) {
-                window.location.href = baseUrl + '/search?q=' + encodeURIComponent(q);
-            } else {
-                window.location.href = baseUrl;
-            }
+            loadUsers(q || undefined);
         }
         searchBtn.addEventListener('click', triggerSearch);
         clearSearchBtn.addEventListener('click', function() {
             searchInput.value = '';
-            window.location.href = baseUrl;
+            loadUsers();
         });
         searchInput.addEventListener('keydown', function(e) {
             if (e.key === 'Enter') {
@@ -264,73 +321,95 @@
                 email: email
             };
 
-            let url;
             if (id) {
-                // Edit existing user
-                url = baseUrl + '/edit/' + encodeURIComponent(id);
+                // Update existing user via REST PUT /user?id={id}
+                fetch(baseUrl + '?id=' + encodeURIComponent(id), {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(res => res.json().catch(() => null))
+                    .then(() => {
+                        closeModal();
+                        showMessage('User updated');
+                        loadUsers();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showMessage('Update failed', false);
+                    });
             } else {
-                // Create new user
-                url = baseUrl + '/create';
+                // Create via REST POST /user
+                fetch(baseUrl, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(res => res.json().catch(() => null))
+                    .then(() => {
+                        closeModal();
+                        showMessage('User created');
+                        loadUsers();
+                    })
+                    .catch(err => {
+                        console.error(err);
+                        showMessage('Create failed', false);
+                    });
             }
-
-            fetch(url, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(payload)
-                })
-                .then(response => response.json().catch(() => null))
-                .then(data => {
-                    closeModal();
-                    // Simple approach: reload to refresh list
-                    window.location.reload();
-                })
-                .catch(error => {
-                    console.error('Error:', error);
-                });
         });
 
         // Edit & Delete buttons
-        document.querySelectorAll('.edit-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const row = this.closest('tr');
-                const id = row.getAttribute('data-id');
-                const name = row.getAttribute('data-name');
-                const email = row.getAttribute('data-email');
+        function bindRowActions() {
+            document.querySelectorAll('.edit-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const row = this.closest('tr');
+                    const id = row.getAttribute('data-id');
+                    const name = row.getAttribute('data-name');
+                    const email = row.getAttribute('data-email');
 
-                openModal('edit', {
-                    id,
-                    name,
-                    email
+                    openModal('edit', {
+                        id,
+                        name,
+                        email
+                    });
                 });
             });
-        });
 
-        document.querySelectorAll('.delete-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                const row = this.closest('tr');
-                const id = row.getAttribute('data-id');
+            document.querySelectorAll('.delete-btn').forEach(function(btn) {
+                btn.addEventListener('click', function() {
+                    const row = this.closest('tr');
+                    const id = row.getAttribute('data-id');
 
-                if (!confirm('Are you sure you want to delete this user?')) {
-                    return;
-                }
+                    if (!confirm('Are you sure you want to delete this user?')) {
+                        return;
+                    }
 
-                const url = baseUrl + '/delete/' + encodeURIComponent(id);
-
-                fetch(url, {
-                        method: 'POST'
-                    })
-                    .then(response => response.text())
-                    .then(text => {
-                        // Remove row from table without full reload
-                        row.parentNode.removeChild(row);
-                    })
-                    .catch(error => {
-                        console.error('Error:', error);
-                    });
+                    fetch(baseUrl + '?id=' + encodeURIComponent(id), {
+                            method: 'DELETE'
+                        })
+                        .then(res => {
+                            if (res.status === 204) {
+                                // remove row on no content
+                                row.parentNode.removeChild(row);
+                                showMessage('User deleted');
+                            } else {
+                                showMessage('Delete failed', false);
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            showMessage('Delete error', false);
+                        });
+                });
             });
-        });
+        }
+
+        // Initial load
+        loadUsers();
     </script>
 
 </body>

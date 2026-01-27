@@ -1,9 +1,12 @@
 <?php
+
+use chriskacerguis\RestServer\RestController;
+
 defined('BASEPATH') or exit('No direct script access allowed');
 
 require_once APPPATH . 'validations/UserValidator.php';
 
-class User extends CI_Controller
+class User extends RestController
 
 {
     public function __construct()
@@ -13,127 +16,140 @@ class User extends CI_Controller
         $this->load->helper('url');
     }
 
-    public function index()
+    // GET /user? id={id} | q={search}
+    public function index_get()
     {
-        $data['users'] = $this->user->get();
-        $this->load->view('user_list', $data);
-    }
+        $id = $this->get('id');
+        $keyword = $this->get('q');
 
-    public function create()
-    {
-        $contentType = $this->input->get_request_header('Content-Type');
-
-        if ($contentType && stripos($contentType, 'application/json') !== false) {
-
-            $raw = $this->input->raw_input_stream;
-            $data = json_decode($raw, true) ?: [];
-
-
-            $errors = UserValidator::validateCreate($data);
-
-            if (!empty($errors)) {
-                return $this->output
-                    ->set_content_type('application/json')
-                    ->set_output(json_encode([
-                        'success' => false,
-                        'errors' => $errors
-                    ]));
+        if ($id !== null && $id !== '') {
+            $user = $this->user->get($id);
+            if ($user) {
+                return $this->response([
+                    'success' => true,
+                    'data' => $user
+                ], RestController::HTTP_OK);
             }
-
-            $ok = $this->user->create([
-                'name'  => $data['name'],
-                'email' => $data['email']
-            ]);
-
-            return $this->output
-                ->set_content_type('application/json')
-                ->set_output(json_encode([
-                    'success' => (bool)$ok
-                ]));
+            return $this->response([
+                'success' => false,
+                'error' => 'User not found'
+            ], RestController::HTTP_NOT_FOUND);
         }
 
-        if ($this->input->post()) {
-
-            $postData = [
-                'name'  => $this->input->post('name'),
-                'email' => $this->input->post('email')
-            ];
-
-
-            $errors = UserValidator::validateCreate($postData);
-
-            if (!empty($errors)) {
-                return $this->load->view('create_user', [
-                    'errors' => $errors
-                ]);
-            }
-
-            $this->user->create($postData);
-            return redirect('user');
+        if ($keyword !== null && $keyword !== '') {
+            $users = $this->user->search(['name', 'email'], $keyword);
+            return $this->response([
+                'success' => true,
+                'data' => $users
+            ], RestController::HTTP_OK);
         }
 
-
-        $this->load->view('create_user');
+        $users = $this->user->get_all();
+        return $this->response([
+            'success' => true,
+            'data' => $users
+        ], RestController::HTTP_OK);
     }
 
-
-    public function edit($id = null)
+    // POST /user
+    public function index_post()
     {
-        if (!$id) show_404();
+        $data = [
+            'name' => trim($this->post('name')),
+            'email' => trim($this->post('email')),
+            'password' => password_hash(trim($this->post('password')), PASSWORD_DEFAULT)
+        ];
 
-        $contentType = $this->input->get_request_header('Content-Type');
-        if ($contentType && stripos($contentType, 'application/json') !== false) {
-            $raw = $this->input->raw_input_stream;
-            $data = json_decode($raw, true) ?: [];
-            if (!empty($data['name']) && !empty($data['email'])) {
-                $ok = $this->user->update($id, [
-                    'name'  => $data['name'],
-                    'email' => $data['email']
-                ]);
-                return $this->output
-                    ->set_content_type('application/json')
-                    ->set_output(json_encode(['success' => (bool)$ok]));
-            }
-            return $this->output
-                ->set_content_type('application/json')
-                ->set_output(json_encode(['success' => false, 'error' => 'Invalid payload']));
+        $errors = UserValidator::validateCreate($data);
+        if (!empty($errors)) {
+            return $this->response([
+                'success' => false,
+                'errors' => $errors
+            ], RestController::HTTP_BAD_REQUEST);
         }
 
-        if ($this->input->post()) {
-            $this->user->update($id, [
-                'name'  => $this->input->post('name'),
-                'email' => $this->input->post('email')
-            ]);
-            return redirect('user');
-        }
+        $ok = $this->user->create($data);
 
-        $data['user'] = $this->user->get($id);
-        $this->load->view('edit_user', $data);
+        if ($ok) {
+            $id = $this->db->insert_id();
+            return $this->response([
+                'success' => true,
+                'id' => $id
+            ], RestController::HTTP_CREATED);
+        }
+        return $this->response([
+            'success' => false,
+            'error' => 'Failed to create user'
+        ], RestController::HTTP_INTERNAL_ERROR);
     }
 
-
-    public function delete($id)
+    // PUT /user? id={id}
+    public function index_put()
     {
-        $contentType = $this->input->get_request_header('Content-Type');
-        if ($contentType && stripos($contentType, 'application/json') !== false) {
-            $ok = $this->user->delete($id);
-            return $this->output
-                ->set_content_type('app  lication/json')
-                ->set_output(json_encode(['success' => (bool)$ok]));
+        $id = $this->get('id');
+        if ($id === null || $id === '') {
+            $id = $this->put('id');
         }
 
-        $this->user->delete($id);
-        return redirect('user');
+        if ($id === null || $id === '') {
+            return $this->response([
+                'success' => false,
+                'error' => 'Missing user id'
+            ], RestController::HTTP_BAD_REQUEST);
+        }
+
+        $payload = [
+            'name'  => $this->put('name'),
+            'email' => $this->put('email'),
+            'password' => $this->put('password')
+        ];
+
+        if (empty($payload['name']) || empty($payload['email']) || empty($payload['password'])) {
+            return $this->response([
+                'success' => false,
+                'error' => 'Name, Email, and Password are required'
+            ], RestController::HTTP_BAD_REQUEST);
+        }
+
+        $existing = $this->user->get($id);
+        if (!$existing) {
+            return $this->response([
+                'success' => false,
+                'error' => 'User not found'
+            ], RestController::HTTP_NOT_FOUND);
+        }
+
+        $ok = $this->user->update($id, $payload);
+        return $this->response([
+            'success' => (bool)$ok
+        ], RestController::HTTP_OK);
     }
 
-    public function search()
+    public function index_delete($id = null)
     {
-        $keyword = $this->input->get('q');
-        if ($keyword) {
-            $data['users'] = $this->user->search(['name', 'email'], $keyword);
-        } else {
-            $data['users'] = $this->user->get_all();
+        if ($id === null) {
+            return $this->response([
+                'success' => false,
+                'error' => 'Missing user id'
+            ], RestController::HTTP_BAD_REQUEST);
         }
-        $this->load->view('user_list', $data);
+
+        $existing = $this->user->get($id);
+        if (!$existing) {
+            return $this->response([
+                'success' => false,
+                'error' => 'User not found'
+            ], RestController::HTTP_NOT_FOUND);
+        }
+
+        $ok = $this->user->delete($id);
+        if ($ok) {
+            return $this->response(null, RestController::HTTP_OK);
+        }
+
+        return $this->response([
+            'success' => false,
+            'error' => 'Failed to delete user'
+        ], RestController::HTTP_INTERNAL_ERROR);
     }
 }

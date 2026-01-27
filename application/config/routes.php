@@ -57,12 +57,9 @@ $route['translate_uri_dashes'] = FALSE;
 
 
 $route['user'] = 'User';
-// $route['user'] = 'User/get-users';
-
-// $route['user/create'] = 'User/create';
-
-// $route['user/delete/(:num)'] = 'User/delete/$1';
 
 
-// $route['user/edit/(:num)'] = 'User/edit/$1';
-// $route['api/users'] = 'User/get_users';
+$route['users'] = 'user/index_get';
+$route['users'] = 'user/index_post';
+
+$route['login'] = 'auth/index_get';
