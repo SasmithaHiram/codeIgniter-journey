@@ -14,6 +14,7 @@ class User extends RestController
         parent::__construct();
         $this->load->model('User_model', 'user');
         $this->load->helper('url');
+        $this->load->library('Jwt_helper');
     }
 
     // GET /user? id={id} | q={search}
