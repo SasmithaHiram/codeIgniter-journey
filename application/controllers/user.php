@@ -7,6 +7,12 @@ defined('BASEPATH') or exit('No direct script access allowed');
 require_once APPPATH . 'validations/UserValidator.php';
 require_once APPPATH . 'core/RestAuthController.php';
 
+/**
+ * @property User_model $user
+ * @property CI_Cache $cache
+ * @property CI_DB_query_builder $db
+ */
+
 class User extends RestAuthController
 
 {
@@ -15,6 +21,7 @@ class User extends RestAuthController
         parent::__construct();
         $this->load->model('User_model', 'user');
         $this->load->helper('url');
+        $this->load->driver('cache');
     }
 
     // GET /user? id={id} | q={search}
@@ -24,33 +31,49 @@ class User extends RestAuthController
         $keyword = $this->get('q');
 
         if ($id !== null && $id !== '') {
-            $user = $this->user->get($id);
+
+            $cacheKey = 'user_id_' . $id;
+
+            $user = $this->cache->get($cacheKey);
+
+            if ($user === FALSE) {
+                $user = $this->user->get($id);
+
+                if ($user) {
+                    $this->cache->save($cacheKey, $user, 300);
+                }
+            }
+
             if ($user) {
                 return $this->response([
                     'success' => true,
                     'data' => $user
                 ], RestController::HTTP_OK);
             }
+
             return $this->response([
                 'success' => false,
                 'error' => 'User not found'
             ], RestController::HTTP_NOT_FOUND);
         }
 
-        if ($keyword !== null && $keyword !== '') {
-            $users = $this->user->search(['name', 'email'], $keyword);
-            return $this->response([
-                'success' => true,
-                'data' => $users
-            ], RestController::HTTP_OK);
+        $cacheKey = 'users_all';
+
+        $users = $this->cache->get($cacheKey);
+
+        if ($users === FALSE) {
+
+            $users = $this->user->get_all();
+
+            $this->cache->save($cacheKey, $users, 120);
         }
 
-        $users = $this->user->get_all();
         return $this->response([
             'success' => true,
             'data' => $users
         ], RestController::HTTP_OK);
     }
+
 
     // POST /user
     public function index_post()
