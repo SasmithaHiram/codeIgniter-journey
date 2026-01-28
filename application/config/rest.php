@@ -202,6 +202,11 @@ $config['auth_library_function'] = '';
 // ---Uncomment list line for the wildard unit test
 // $config['auth_override_class_method_http']['wildcard_test_cases']['*']['options'] = 'basic';
 
+// Allow CORS preflight (OPTIONS) without auth for main controllers
+$config['auth_override_class_method_http']['auth']['*']['options'] = 'none';
+$config['auth_override_class_method_http']['user']['*']['options'] = 'none';
+$config['auth_override_class_method_http']['welcome']['*']['options'] = 'none';
+
 /*
 |--------------------------------------------------------------------------
 | REST Login Usernames
@@ -623,6 +628,8 @@ $config['allowed_cors_headers'] = [
     'Content-Type',
     'Accept',
     'Access-Control-Request-Method',
+    'Authorization',
+    'X-API-KEY',
 ];
 
 /*
@@ -665,7 +672,8 @@ $config['allow_any_cors_domain'] = false;
 |
 */
 $config['allowed_cors_origins'] = [
-    'http://localhost:5173'
+    'http://localhost:5173',
+    'http://127.0.0.1:5173',
 ];
 
 /*
