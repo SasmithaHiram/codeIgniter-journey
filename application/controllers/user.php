@@ -102,7 +102,6 @@ class User extends RestAuthController
         $payload = [
             'name'  => $this->put('name'),
             'email' => $this->put('email'),
-            // Ensure password is stored hashed, consistent with POST
             'password' => password_hash($this->put('password'), PASSWORD_DEFAULT)
         ];
 
